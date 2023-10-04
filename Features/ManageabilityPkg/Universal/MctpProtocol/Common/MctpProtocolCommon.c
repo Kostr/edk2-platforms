@@ -132,7 +132,7 @@ SetupMctpRequestTransportPacket (
   MANAGEABILITY_MCTP_KCS_HEADER  *MctpKcsHeader;
   MCTP_TRANSPORT_HEADER          *MctpTransportHeader;
   MCTP_MESSAGE_HEADER            *MctpMessageHeader;
-  UINT8                          *Pec;
+  MANAGEABILITY_MCTP_KCS_TRAILER *MctpKcsTrailer;
   UINT8                          *ThisPackage;
 
   if ((PacketHeader == NULL) || (PacketHeaderSize == NULL) ||
@@ -151,8 +151,8 @@ SetupMctpRequestTransportPacket (
       return EFI_OUT_OF_RESOURCES;
     }
 
-    Pec = (UINT8 *)AllocateZeroPool (sizeof (UINT8));
-    if (Pec == NULL) {
+    MctpKcsTrailer = (MANAGEABILITY_MCTP_KCS_TRAILER *)AllocateZeroPool (sizeof (MANAGEABILITY_MCTP_KCS_TRAILER));
+    if (MctpKcsTrailer == NULL) {
       DEBUG ((DEBUG_ERROR, "%a: Not enough resource for PEC.\n", __func__));
       FreePool (MctpKcsHeader);
       return EFI_OUT_OF_RESOURCES;
@@ -167,7 +167,7 @@ SetupMctpRequestTransportPacket (
     if (ThisPackage == NULL) {
       DEBUG ((DEBUG_ERROR, "%a: Not enough resource for package.\n", __func__));
       FreePool (MctpKcsHeader);
-      FreePool (Pec);
+      FreePool (MctpKcsTrailer);
       return EFI_OUT_OF_RESOURCES;
     }
 
@@ -193,14 +193,13 @@ SetupMctpRequestTransportPacket (
 
     //
     // Generate PEC follow SMBUS 2.0 specification.
-    *Pec = HelperManageabilityGenerateCrc8 (MCTP_KCS_PACKET_ERROR_CODE_POLY, 0, ThisPackage, MctpKcsHeader->ByteCount);
-
+    *MctpKcsTrailer->Pec = HelperManageabilityGenerateCrc8 (MCTP_KCS_PACKET_ERROR_CODE_POLY, 0, ThisPackage, MctpKcsHeader->ByteCount);
     *PacketBody        = (UINT8 *)ThisPackage;
     *PacketBodySize    = MctpKcsHeader->ByteCount;
-    *PacketTrailer     = (MANAGEABILITY_TRANSPORT_TRAILER)Pec;
+    *PacketTrailer     = (MANAGEABILITY_TRANSPORT_TRAILER)MctpKcsTrailer;
     *PacketHeader      = (MANAGEABILITY_TRANSPORT_HEADER)MctpKcsHeader;
     *PacketHeaderSize  = sizeof (MANAGEABILITY_MCTP_KCS_HEADER);
-    *PacketTrailerSize = 1;
+    *PacketTrailerSize = sizeof (MANAGEABILITY_MCTP_KCS_TRAILER);
     return EFI_SUCCESS;
   } else {
     DEBUG ((DEBUG_ERROR, "%a: No implementation of building up packet.", __func__));
@@ -267,6 +266,9 @@ CommonMctpSubmitMessage (
   MANAGEABILITY_TRANSPORT_TRAILER            MctpTransportTrailer;
   MANAGEABILITY_TRANSMISSION_MULTI_PACKAGES  *MultiPackages;
   MANAGEABILITY_TRANSMISSION_PACKAGE_ATTR    *ThisPackage;
+  UINT8                                      *ResponseBuffer;
+  MCTP_TRANSPORT_HEADER                      *MctpTransportResponseHeader;
+  MCTP_MESSAGE_HEADER                        *MctpMessageResponseHeader;
 
   if (TransportToken == NULL) {
     DEBUG ((DEBUG_ERROR, "%a: No transport toke for MCTP\n", __func__));
@@ -435,11 +437,12 @@ CommonMctpSubmitMessage (
     ThisPackage++;
   }
 
+  ResponseBuffer = (UINT8 *)AllocatePool (*ResponseDataSize + sizeof (MCTP_TRANSPORT_HEADER) + sizeof (MCTP_MESSAGE_HEADER));
   // Receive packet.
   TransferToken.TransmitPackage.TransmitPayload             = NULL;
   TransferToken.TransmitPackage.TransmitSizeInByte          = 0;
-  TransferToken.ReceivePackage.ReceiveBuffer                = ResponseData;
-  TransferToken.ReceivePackage.ReceiveSizeInByte            = *ResponseDataSize;
+  TransferToken.ReceivePackage.ReceiveBuffer                = ResponseBuffer;
+  TransferToken.ReceivePackage.ReceiveSizeInByte            = *ResponseDataSize + sizeof (MCTP_TRANSPORT_HEADER) + sizeof (MCTP_MESSAGE_HEADER);
   TransferToken.TransmitHeader                              = NULL;
   TransferToken.TransmitHeaderSize                          = 0;
   TransferToken.TransmitTrailer                             = NULL;
@@ -457,12 +460,52 @@ CommonMctpSubmitMessage (
                                                     &TransferToken
                                                     );
 
+  MctpTransportResponseHeader = (MCTP_TRANSPORT_HEADER *)ResponseBuffer;
+  if (MctpTransportResponseHeader->Bits.DestinationEndpointId != MctpSourceEndpointId) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: Error! Response DestEID (0x%02x) doesn't match local EID (0x%02x)\n",
+      __func__,
+      MctpTransportResponseHeader->Bits.DestinationEndpointId,
+      MctpSourceEndpointId
+      ));
+    FreePool (ResponseBuffer);
+    return EFI_DEVICE_ERROR;
+  }
+
+  MctpMessageResponseHeader = (MCTP_MESSAGE_HEADER *)(MctpTransportResponseHeader + 1);
+  if (MctpMessageResponseHeader->Bits.MessageType != MctpType) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: Error! Response MessageType (0x%02x) doesn't match sent MessageType (0x%02x)\n",
+      __func__,
+      MctpMessageResponseHeader->Bits.MessageType,
+      MctpType
+      ));
+    FreePool (ResponseBuffer);
+    return EFI_DEVICE_ERROR;
+  }
+
+  if (MctpMessageResponseHeader->Bits.IntegrityCheck != (UINT8)RequestDataIntegrityCheck) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: Error! Response IntegrityCheck (%d) doesn't match sent IntegrityCheck (%d)\n",
+      __func__,
+      MctpMessageResponseHeader->Bits.IntegrityCheck,
+      (UINT8)RequestDataIntegrityCheck
+      ));
+    FreePool (ResponseBuffer);
+    return EFI_DEVICE_ERROR;
+  }
+
   //
   // Return transfer status.
   //
   *AdditionalTransferError = TransferToken.TransportAdditionalStatus;
-  *ResponseDataSize        = TransferToken.ReceivePackage.ReceiveSizeInByte;
-  Status                   = TransferToken.TransferStatus;
+  *ResponseDataSize        = TransferToken.ReceivePackage.ReceiveSizeInByte - sizeof (MCTP_TRANSPORT_HEADER) - sizeof (MCTP_MESSAGE_HEADER);
+  CopyMem (ResponseData, ResponseBuffer + sizeof (MCTP_TRANSPORT_HEADER) + sizeof (MCTP_MESSAGE_HEADER), *ResponseDataSize);
+  FreePool (ResponseBuffer);
+  Status = TransferToken.TransferStatus;
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "%a: Failed to send MCTP command over %s: %r\n", __func__, mTransportName, Status));
     return Status;
