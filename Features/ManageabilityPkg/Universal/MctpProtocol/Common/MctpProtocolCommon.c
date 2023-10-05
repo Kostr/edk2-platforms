@@ -193,13 +193,13 @@ SetupMctpRequestTransportPacket (
 
     //
     // Generate PEC follow SMBUS 2.0 specification.
-    *MctpKcsTrailer->Pec = HelperManageabilityGenerateCrc8 (MCTP_KCS_PACKET_ERROR_CODE_POLY, 0, ThisPackage, MctpKcsHeader->ByteCount);
-    *PacketBody        = (UINT8 *)ThisPackage;
-    *PacketBodySize    = MctpKcsHeader->ByteCount;
-    *PacketTrailer     = (MANAGEABILITY_TRANSPORT_TRAILER)MctpKcsTrailer;
-    *PacketHeader      = (MANAGEABILITY_TRANSPORT_HEADER)MctpKcsHeader;
-    *PacketHeaderSize  = sizeof (MANAGEABILITY_MCTP_KCS_HEADER);
-    *PacketTrailerSize = sizeof (MANAGEABILITY_MCTP_KCS_TRAILER);
+    MctpKcsTrailer->Pec = HelperManageabilityGenerateCrc8 (MCTP_KCS_PACKET_ERROR_CODE_POLY, 0, ThisPackage, MctpKcsHeader->ByteCount);
+    *PacketBody         = (UINT8 *)ThisPackage;
+    *PacketBodySize     = MctpKcsHeader->ByteCount;
+    *PacketTrailer      = (MANAGEABILITY_TRANSPORT_TRAILER)MctpKcsTrailer;
+    *PacketHeader       = (MANAGEABILITY_TRANSPORT_HEADER)MctpKcsHeader;
+    *PacketHeaderSize   = sizeof (MANAGEABILITY_MCTP_KCS_HEADER);
+    *PacketTrailerSize  = sizeof (MANAGEABILITY_MCTP_KCS_TRAILER);
     return EFI_SUCCESS;
   } else {
     DEBUG ((DEBUG_ERROR, "%a: No implementation of building up packet.", __func__));

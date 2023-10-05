@@ -82,14 +82,14 @@ MctpSubmitMessage (
   // Chec source EID and destination EDI.
   //
   if ((MctpSourceEndpointId >= MCTP_RESERVED_ENDPOINT_START_ID) &&
-       MctpSourceEndpointId <= MCTP_RESERVED_ENDPOINT_END_ID)
+      (MctpSourceEndpointId <= MCTP_RESERVED_ENDPOINT_END_ID)
       ) {
     DEBUG ((DEBUG_ERROR, "%a: The value of MCTP source EID (%x) is reserved.\n", __func__, MctpSourceEndpointId));
     return EFI_INVALID_PARAMETER;
   }
 
   if ((MctpDestinationEndpointId >= MCTP_RESERVED_ENDPOINT_START_ID) &&
-       MctpDestinationEndpointId <= MCTP_RESERVED_ENDPOINT_END_ID)
+      (MctpDestinationEndpointId <= MCTP_RESERVED_ENDPOINT_END_ID)
       ) {
     DEBUG ((DEBUG_ERROR, "%a: The value of MCTP destination EID (%x) is reserved.\n", __func__, MctpDestinationEndpointId));
     return EFI_INVALID_PARAMETER;
