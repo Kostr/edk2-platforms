@@ -460,6 +460,13 @@ CommonMctpSubmitMessage (
                                                     &TransferToken
                                                     );
 
+  *AdditionalTransferError = TransferToken.TransportAdditionalStatus;
+  Status = TransferToken.TransferStatus;
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a: Failed to send MCTP command over %s: %r\n", __func__, mTransportName, Status));
+    return Status;
+  }
+
   MctpTransportResponseHeader = (MCTP_TRANSPORT_HEADER *)ResponseBuffer;
   if (MctpTransportResponseHeader->Bits.DestinationEndpointId != MctpSourceEndpointId) {
     DEBUG ((
@@ -498,18 +505,9 @@ CommonMctpSubmitMessage (
     return EFI_DEVICE_ERROR;
   }
 
-  //
-  // Return transfer status.
-  //
-  *AdditionalTransferError = TransferToken.TransportAdditionalStatus;
   *ResponseDataSize        = TransferToken.ReceivePackage.ReceiveSizeInByte - sizeof (MCTP_TRANSPORT_HEADER) - sizeof (MCTP_MESSAGE_HEADER);
   CopyMem (ResponseData, ResponseBuffer + sizeof (MCTP_TRANSPORT_HEADER) + sizeof (MCTP_MESSAGE_HEADER), *ResponseDataSize);
   FreePool (ResponseBuffer);
-  Status = TransferToken.TransferStatus;
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "%a: Failed to send MCTP command over %s: %r\n", __func__, mTransportName, Status));
-    return Status;
-  }
 
   return Status;
 }
