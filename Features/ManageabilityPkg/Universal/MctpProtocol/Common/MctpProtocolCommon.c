@@ -460,7 +460,58 @@ CommonMctpSubmitMessage (
                                                     &TransferToken
                                                     );
 
+  *AdditionalTransferError = TransferToken.TransportAdditionalStatus;
+  Status = TransferToken.TransferStatus;
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a: Failed to send MCTP command over %s: %r\n", __func__, mTransportName, Status));
+    return Status;
+  }
+
   MctpTransportResponseHeader = (MCTP_TRANSPORT_HEADER *)ResponseBuffer;
+  if (MctpTransportResponseHeader->Bits.HeaderVersion != MCTP_KCS_HEADER_VERSION) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: Error! Response HeaderVersion (0x%02x) doesn't match MCTP_KCS_HEADER_VERSION (0x%02x)\n",
+      __func__,
+      MctpTransportResponseHeader->Bits.HeaderVersion,
+      MCTP_KCS_HEADER_VERSION
+      ));
+    FreePool (ResponseBuffer);
+    return EFI_DEVICE_ERROR;
+  }
+  if (MctpTransportResponseHeader->Bits.MessageTag != MCTP_MESSAGE_TAG) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: Error! Response MessageTag (0x%02x) doesn't match MCTP_MESSAGE_TAG (0x%02x)\n",
+      __func__,
+      MctpTransportResponseHeader->Bits.MessageTag,
+      MCTP_MESSAGE_TAG
+      ));
+    FreePool (ResponseBuffer);
+    return EFI_DEVICE_ERROR;
+  }
+  if (MctpTransportResponseHeader->Bits.TagOwner != MCTP_MESSAGE_TAG_OWNER_RESPONSE) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: Error! Response TagOwner (0x%02x) doesn't match MCTP_MESSAGE_TAG_OWNER_RESPONSE (0x%02x)\n",
+      __func__,
+      MctpTransportResponseHeader->Bits.TagOwner,
+      MCTP_MESSAGE_TAG_OWNER_RESPONSE
+      ));
+    FreePool (ResponseBuffer);
+    return EFI_DEVICE_ERROR;
+  }
+  if (MctpTransportResponseHeader->Bits.SourceEndpointId != MctpDestinationEndpointId) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: Error! Response SrcEID (0x%02x) doesn't match sent EID (0x%02x)\n",
+      __func__,
+      MctpTransportResponseHeader->Bits.SourceEndpointId,
+      MctpDestinationEndpointId
+      ));
+    FreePool (ResponseBuffer);
+    return EFI_DEVICE_ERROR;
+  }
   if (MctpTransportResponseHeader->Bits.DestinationEndpointId != MctpSourceEndpointId) {
     DEBUG ((
       DEBUG_ERROR,
@@ -471,6 +522,17 @@ CommonMctpSubmitMessage (
       ));
     FreePool (ResponseBuffer);
     return EFI_DEVICE_ERROR;
+  }
+  if ((MctpTransportResponseHeader->Bits.StartOfMessage != 1) ||
+      (MctpTransportResponseHeader->Bits.EndOfMessage != 1) ||
+      (MctpTransportResponseHeader->Bits.PacketSequence != 0)) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: Error! Multiple-packet MCTP responses are not supported by the current driver\n",
+      __func__,
+      ));
+    FreePool (ResponseBuffer);
+    return EFI_UNSUPPORTED;
   }
 
   MctpMessageResponseHeader = (MCTP_MESSAGE_HEADER *)(MctpTransportResponseHeader + 1);
@@ -498,18 +560,9 @@ CommonMctpSubmitMessage (
     return EFI_DEVICE_ERROR;
   }
 
-  //
-  // Return transfer status.
-  //
-  *AdditionalTransferError = TransferToken.TransportAdditionalStatus;
   *ResponseDataSize        = TransferToken.ReceivePackage.ReceiveSizeInByte - sizeof (MCTP_TRANSPORT_HEADER) - sizeof (MCTP_MESSAGE_HEADER);
   CopyMem (ResponseData, ResponseBuffer + sizeof (MCTP_TRANSPORT_HEADER) + sizeof (MCTP_MESSAGE_HEADER), *ResponseDataSize);
   FreePool (ResponseBuffer);
-  Status = TransferToken.TransferStatus;
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "%a: Failed to send MCTP command over %s: %r\n", __func__, mTransportName, Status));
-    return Status;
-  }
 
   return Status;
 }
