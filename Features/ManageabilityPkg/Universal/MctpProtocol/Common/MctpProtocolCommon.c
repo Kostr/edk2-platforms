@@ -529,7 +529,7 @@ CommonMctpSubmitMessage (
     DEBUG ((
       DEBUG_ERROR,
       "%a: Error! Multiple-packet MCTP responses are not supported by the current driver\n",
-      __func__,
+      __func__
       ));
     FreePool (ResponseBuffer);
     return EFI_UNSUPPORTED;
