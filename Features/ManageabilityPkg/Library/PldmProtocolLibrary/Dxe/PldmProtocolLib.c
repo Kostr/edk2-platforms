@@ -12,7 +12,39 @@
 #include <Library/ManageabilityTransportHelperLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 
-EDKII_PLDM_PROTOCOL  *mEdkiiPldmProtocol = NULL;
+EDKII_PLDM_PROTOCOL  *mEdkiiPldmProtocol        = NULL;
+UINT8                mSourcePldmTerminusId      = PLDM_TERMINUS_ID_UNASSIGNED;
+UINT8                mDestinationPldmTerminusId = PLDM_TERMINUS_ID_UNASSIGNED;
+
+/**
+  This function sets the PLDM source termius and destination terminus
+  ID for SMBIOS PLDM transfer.
+
+  @param[in]         SourceId       PLDM source teminus ID.
+  @param[in]         DestinationId  PLDM destination teminus ID.
+
+  @retval EFI_SUCCESS            The terminus is set successfully.
+  @retval EFI_INVALID_PARAMETER  The terminus is set unsuccessfully.
+**/
+EFI_STATUS
+PldmSetTerminus (
+  IN  UINT8   SourceId,
+  IN  UINT8   DestinationId
+)
+{
+  if ((SourceId == PLDM_TERMINUS_ID_RESERVED) ||
+      (DestinationId == PLDM_TERMINUS_ID_RESERVED)) {
+    DEBUG ((DEBUG_ERROR, "%a: SourceId or DestinationId for PLDM terminus is invalid. Source ID: 0x%x, Destination ID: 0x%x\n",
+      __func__,
+      SourceId,
+      DestinationId
+      ));
+    return EFI_INVALID_PARAMETER;
+  }
+  mSourcePldmTerminusId      = SourceId;
+  mDestinationPldmTerminusId = DestinationId;
+  return EFI_SUCCESS;
+}
 
 /**
   This service enables submitting commands via EDKII PLDM protocol.
@@ -69,6 +101,8 @@ PldmSubmitCommand (
                                                        mEdkiiPldmProtocol,
                                                        PldmType,
                                                        Command,
+                                                       (mSourcePldmTerminusId == PLDM_TERMINUS_ID_SPECIAL)? (UINT8 *)NULL: &mSourcePldmTerminusId,
+                                                       (mDestinationPldmTerminusId == PLDM_TERMINUS_ID_SPECIAL)? (UINT8 *)NULL: &mDestinationPldmTerminusId,
                                                        RequestData,
                                                        RequestDataSize,
                                                        ResponseData,

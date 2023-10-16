@@ -43,8 +43,8 @@
   gEdkiiPldmProtocolGuid
 
 [FixedPcd]
-  gManageabilityPkgTokenSpaceGuid.PcdMctpSourceEndpointId
-  gManageabilityPkgTokenSpaceGuid.PcdMctpDestinationEndpointId
+  gManageabilityPkgTokenSpaceGuid.PcdPldmSourceTerminusId
+  gManageabilityPkgTokenSpaceGuid.PcdPldmDestinationEndpointId
 
 [Depex]
   TRUE

@@ -25,13 +25,19 @@ UINT32                         TransportMaximumPayload;
 /**
   This service enables submitting commands via EDKII PLDM protocol.
 
-  @param[in]         This              EDKII_PLDM_PROTOCOL instance.
-  @param[in]         PldmType          PLDM message type.
-  @param[in]         Command           PLDM Command of PLDM message type.
-  @param[in]         RequestData       Command Request Data.
-  @param[in]         RequestDataSize   Size of Command Request Data.
-  @param[out]        ResponseData      Command Response Data. The completion code is the first byte of response data.
-  @param[in, out]    ResponseDataSize  Size of Command Response Data.
+  @param[in]         This                       EDKII_PLDM_PROTOCOL instance.
+  @param[in]         PldmType                   PLDM message type.
+  @param[in]         Command                    PLDM Command of PLDM message type.
+  @param[in]         PldmTerminusSourceId       Pointer to PLDM source teminus ID.
+                                                NULL means use platform default value.
+                                                (gManageabilityPkgTokenSpaceGuid.PcdPldmSourceTerminusId)
+  @param[in]         PldmTerminusDestinationId  PLDM destination teminus ID.
+                                                NULL means use platform default value.
+                                                (gManageabilityPkgTokenSpaceGuid.PcdPldmDestinationEndpointId)
+  @param[in]         RequestData                Command Request Data.
+  @param[in]         RequestDataSize            Size of Command Request Data.
+  @param[out]        ResponseData               Command Response Data. The completion code is the first byte of response data.
+  @param[in, out]    ResponseDataSize           Size of Command Response Data.
 
   @retval EFI_SUCCESS            The command byte stream was successfully submit to the device and a response was successfully received.
   @retval EFI_NOT_FOUND          The command was not successfully sent to the device or a response was not successfully received from the device.
@@ -39,7 +45,7 @@ UINT32                         TransportMaximumPayload;
   @retval EFI_DEVICE_ERROR       PLDM transport interface Device hardware error.
   @retval EFI_TIMEOUT            The command time out.
   @retval EFI_UNSUPPORTED        The command was not successfully sent to the device.
-  @retval EFI_OUT_OF_RESOURCES   The resource allocation is out of resource or data size error.
+  @retval EFI_OUT_OF_RESOURCES   The resource allcation is out of resource or data size error.
   @retval EFI_INVALID_PARAMETER  Both RequestData and ResponseData are NULL
 **/
 EFI_STATUS
@@ -48,6 +54,8 @@ PldmSubmitCommand (
   IN     EDKII_PLDM_PROTOCOL  *This,
   IN     UINT8                PldmType,
   IN     UINT8                Command,
+  IN     UINT8                *PldmTerminusSourceId,
+  IN     UINT8                *PldmTerminusDestinationId,
   IN     UINT8                *RequestData,
   IN     UINT32               RequestDataSize,
   OUT    UINT8                *ResponseData,
@@ -55,16 +63,31 @@ PldmSubmitCommand (
   )
 {
   EFI_STATUS  Status;
+  UINT8       SourceTerminusId;
+  UINT8       DestinationTerminusId;
 
   if ((RequestData == NULL) && (ResponseData == NULL)) {
     DEBUG ((DEBUG_ERROR, "%a: Both RequestData and ResponseData are NULL\n", __func__));
     return EFI_INVALID_PARAMETER;
   }
+  if (PldmTerminusSourceId == NULL) {
+    SourceTerminusId = PcdGet8(PcdPldmSourceTerminusId);
+  } else {
+    SourceTerminusId = *PldmTerminusSourceId;
+  }
+  if (PldmTerminusDestinationId == NULL) {
+    DestinationTerminusId = PcdGet8(PcdPldmDestinationEndpointId);
+  } else {
+    DestinationTerminusId = *PldmTerminusDestinationId;
+  }
+  DEBUG ((DEBUG_MANAGEABILITY, "%a: Source terminus ID: 0x%x, Destination terminus ID: 0x%x.\n"));
 
   Status = CommonPldmSubmitCommand (
              mTransportToken,
              PldmType,
              Command,
+             SourceTerminusId,
+             DestinationTerminusId,
              RequestData,
              RequestDataSize,
              ResponseData,
