@@ -66,15 +66,59 @@ PldmSubmitCommand (
   UINT8       SourceTerminusId;
   UINT8       DestinationTerminusId;
 
-  if ((RequestData == NULL) && (ResponseData == NULL)) {
-    DEBUG ((DEBUG_ERROR, "%a: Both RequestData and ResponseData are NULL\n", __func__));
+  //
+  // Check the given input parameters.
+  //
+  if (RequestData == NULL && RequestDataSize != 0) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: RequestDataSize != 0, however RequestData is NULL for PLDM type: 0x%x, Command: 0x%x.\n",
+      __func__,
+      PldmType,
+      Command
+      ));
     return EFI_INVALID_PARAMETER;
   }
+
+  if (RequestData != NULL && RequestDataSize == 0) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: RequestDataSize == 0, however RequestData is not NULL for PLDM type: 0x%x, Command: 0x%x.\n",
+      __func__,
+      PldmType,
+      Command
+      ));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  if (ResponseData == NULL && *ResponseDataSize != 0) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: *ResponseDataSize != 0, however ResponseData is NULL for PLDM type: 0x%x, Command: 0x%x.\n",
+      __func__,
+      PldmType,
+      Command
+      ));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  if (ResponseData != NULL && *ResponseDataSize == 0) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a: *ResponseDataSize == 0, however ResponseData is not NULL for PLDM type: 0x%x, Command: 0x%x.\n",
+      __func__,
+      PldmType,
+      Command
+      ));
+    return EFI_INVALID_PARAMETER;
+  }
+
   if (PldmTerminusSourceId == NULL) {
     SourceTerminusId = PcdGet8(PcdPldmSourceTerminusId);
   } else {
     SourceTerminusId = *PldmTerminusSourceId;
   }
+
   if (PldmTerminusDestinationId == NULL) {
     DestinationTerminusId = PcdGet8(PcdPldmDestinationEndpointId);
   } else {
