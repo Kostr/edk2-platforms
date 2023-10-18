@@ -9,12 +9,13 @@
 #include <PiDxe.h>
 #include <Protocol/PldmProtocol.h>
 #include <Library/DebugLib.h>
+#include <Library/PcdLib.h>
 #include <Library/ManageabilityTransportHelperLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 
 EDKII_PLDM_PROTOCOL  *mEdkiiPldmProtocol        = NULL;
-UINT8                mSourcePldmTerminusId      = PLDM_TERMINUS_ID_UNASSIGNED;
-UINT8                mDestinationPldmTerminusId = PLDM_TERMINUS_ID_UNASSIGNED;
+UINT8                mSourcePldmTerminusId      = 0;
+UINT8                mDestinationPldmTerminusId = 0;
 
 /**
   This function sets the PLDM source termius and destination terminus
@@ -32,15 +33,6 @@ PldmSetTerminus (
   IN  UINT8   DestinationId
 )
 {
-  if ((SourceId == PLDM_TERMINUS_ID_RESERVED) ||
-      (DestinationId == PLDM_TERMINUS_ID_RESERVED)) {
-    DEBUG ((DEBUG_ERROR, "%a: SourceId or DestinationId for PLDM terminus is invalid. Source ID: 0x%x, Destination ID: 0x%x\n",
-      __func__,
-      SourceId,
-      DestinationId
-      ));
-    return EFI_INVALID_PARAMETER;
-  }
   mSourcePldmTerminusId      = SourceId;
   mDestinationPldmTerminusId = DestinationId;
   return EFI_SUCCESS;
@@ -101,8 +93,8 @@ PldmSubmitCommand (
                                                        mEdkiiPldmProtocol,
                                                        PldmType,
                                                        Command,
-                                                       (mSourcePldmTerminusId == PLDM_TERMINUS_ID_SPECIAL)? (UINT8 *)NULL: &mSourcePldmTerminusId,
-                                                       (mDestinationPldmTerminusId == PLDM_TERMINUS_ID_SPECIAL)? (UINT8 *)NULL: &mDestinationPldmTerminusId,
+                                                       mSourcePldmTerminusId,
+                                                       mDestinationPldmTerminusId,
                                                        RequestData,
                                                        RequestDataSize,
                                                        ResponseData,
@@ -118,4 +110,25 @@ PldmSubmitCommand (
   }
 
   return Status;
+}
+/**
+
+  Initialize mSourcePldmTerminusId and mDestinationPldmTerminusId.
+
+  @param ImageHandle     The image handle.
+  @param SystemTable     The system table.
+
+  @retval  EFI_SUCCESS  Protocol listener is registered successfully.
+
+**/
+EFI_STATUS
+EFIAPI
+PldmProtocolLibConstructor (
+  IN EFI_HANDLE        ImageHandle,
+  IN EFI_SYSTEM_TABLE  *SystemTable
+  )
+{
+
+  PldmSetTerminus (PcdGet8(PcdPldmSourceTerminusId), PcdGet8(PcdPldmDestinationEndpointId));
+  return EFI_SUCCESS;
 }

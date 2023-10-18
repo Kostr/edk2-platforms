@@ -29,12 +29,8 @@ typedef struct  _EDKII_PLDM_PROTOCOL EDKII_PLDM_PROTOCOL;
   @param[in]         This                       EDKII_PLDM_PROTOCOL instance.
   @param[in]         PldmType                   PLDM message type.
   @param[in]         Command                    PLDM Command of PLDM message type.
-  @param[in]         PldmTerminusSourceId       Pointer to PLDM source teminus ID.
-                                                NULL means use platform default value.
-                                                (gManageabilityPkgTokenSpaceGuid.PcdPldmSourceTerminusId)
+  @param[in]         PldmTerminusSourceId       PLDM source teminus ID.
   @param[in]         PldmTerminusDestinationId  PLDM destination teminus ID.
-                                                NULL means use platform default value.
-                                                (gManageabilityPkgTokenSpaceGuid.PcdPldmDestinationEndpointId)
   @param[in]         RequestData                Command Request Data.
   @param[in]         RequestDataSize            Size of Command Request Data.
   @param[out]        ResponseData               Command Response Data. The completion code is the first byte of response data.
@@ -55,8 +51,8 @@ EFI_STATUS
   IN     EDKII_PLDM_PROTOCOL  *This,
   IN     UINT8                PldmType,
   IN     UINT8                Command,
-  IN     UINT8                *PldmTerminusSourceId,
-  IN     UINT8                *PldmTerminusDestinationId,
+  IN     UINT8                PldmTerminusSourceId,
+  IN     UINT8                PldmTerminusDestinationId,
   IN     UINT8                *RequestData,
   IN     UINT32               RequestDataSize,
   OUT    UINT8                *ResponseData,

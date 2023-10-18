@@ -28,12 +28,8 @@ UINT32                         TransportMaximumPayload;
   @param[in]         This                       EDKII_PLDM_PROTOCOL instance.
   @param[in]         PldmType                   PLDM message type.
   @param[in]         Command                    PLDM Command of PLDM message type.
-  @param[in]         PldmTerminusSourceId       Pointer to PLDM source teminus ID.
-                                                NULL means use platform default value.
-                                                (gManageabilityPkgTokenSpaceGuid.PcdPldmSourceTerminusId)
+  @param[in]         PldmTerminusSourceId       PLDM source teminus ID.
   @param[in]         PldmTerminusDestinationId  PLDM destination teminus ID.
-                                                NULL means use platform default value.
-                                                (gManageabilityPkgTokenSpaceGuid.PcdPldmDestinationEndpointId)
   @param[in]         RequestData                Command Request Data.
   @param[in]         RequestDataSize            Size of Command Request Data.
   @param[out]        ResponseData               Command Response Data. The completion code is the first byte of response data.
@@ -54,8 +50,8 @@ PldmSubmitCommand (
   IN     EDKII_PLDM_PROTOCOL  *This,
   IN     UINT8                PldmType,
   IN     UINT8                Command,
-  IN     UINT8                *PldmTerminusSourceId,
-  IN     UINT8                *PldmTerminusDestinationId,
+  IN     UINT8                PldmTerminusSourceId,
+  IN     UINT8                PldmTerminusDestinationId,
   IN     UINT8                *RequestData,
   IN     UINT32               RequestDataSize,
   OUT    UINT8                *ResponseData,
@@ -63,8 +59,6 @@ PldmSubmitCommand (
   )
 {
   EFI_STATUS  Status;
-  UINT8       SourceTerminusId;
-  UINT8       DestinationTerminusId;
 
   //
   // Check the given input parameters.
@@ -113,25 +107,13 @@ PldmSubmitCommand (
     return EFI_INVALID_PARAMETER;
   }
 
-  if (PldmTerminusSourceId == NULL) {
-    SourceTerminusId = PcdGet8(PcdPldmSourceTerminusId);
-  } else {
-    SourceTerminusId = *PldmTerminusSourceId;
-  }
-
-  if (PldmTerminusDestinationId == NULL) {
-    DestinationTerminusId = PcdGet8(PcdPldmDestinationEndpointId);
-  } else {
-    DestinationTerminusId = *PldmTerminusDestinationId;
-  }
   DEBUG ((DEBUG_MANAGEABILITY, "%a: Source terminus ID: 0x%x, Destination terminus ID: 0x%x.\n"));
-
   Status = CommonPldmSubmitCommand (
              mTransportToken,
              PldmType,
              Command,
-             SourceTerminusId,
-             DestinationTerminusId,
+             PldmTerminusSourceId,
+             PldmTerminusDestinationId,
              RequestData,
              RequestDataSize,
              ResponseData,
