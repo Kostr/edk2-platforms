@@ -311,7 +311,7 @@ CommonPldmSubmitCommand (
   //
   // Check the response size
   //
-  if (TransferToken.ReceivePackage.ReceiveSizeInByte != FullPacketResponseDataSize) {
+  if (TransferToken.ReceivePackage.ReceiveSizeInByte > FullPacketResponseDataSize) {
     DEBUG ((
       DEBUG_ERROR,
       "The response size is incorrect: Response size %d (Expected %d), Completion code %d.\n",
@@ -325,7 +325,7 @@ CommonPldmSubmitCommand (
     goto ErrorExit;
   }
 
-  if (*ResponseDataSize != GET_PLDM_MESSAGE_PAYLOAD_SIZE(TransferToken.ReceivePackage.ReceiveSizeInByte)) {
+  if (*ResponseDataSize < GET_PLDM_MESSAGE_PAYLOAD_SIZE(TransferToken.ReceivePackage.ReceiveSizeInByte)) {
     DEBUG ((DEBUG_ERROR, "  The size of response is not matched to RequestDataSize assigned by caller.\n"));
     DEBUG ((
       DEBUG_ERROR,
@@ -344,7 +344,7 @@ CommonPldmSubmitCommand (
 
   // Copy response data (without header) to caller's buffer.
   if ((ResponseData != NULL) && (*ResponseDataSize != 0)) {
-    *ResponseDataSize = GET_PLDM_MESSAGE_PAYLOAD_SIZE(FullPacketResponseDataSize);
+    *ResponseDataSize = GET_PLDM_MESSAGE_PAYLOAD_SIZE(TransferToken.ReceivePackage.ReceiveSizeInByte);
     CopyMem (
       (VOID *)ResponseData,
       GET_PLDM_MESSAGE_PAYLOAD_PTR(FullPacketResponseData),
